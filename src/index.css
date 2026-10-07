@@ -2,19 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-primary: #0a120e;
+  --bg-secondary: #121e17;
+  --bg-card: #121e17;
+  --bg-card-hover: #18281f;
+  --border-color: #1f3529;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-inverse: #0f172a;
+  --input-bg: #090d12;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --border-color: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-inverse: #ffffff;
+  --input-bg: #f1f5f9;
+}
+
 @layer base {
   body {
-    background-color: #0a120e;
-    color: #e2e8f0;
+    background-color: var(--bg-primary);
+    color: var(--text-main);
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 }
 
-/* Custom Glassmorphism Styles */
+/* Glassmorphism Styles supporting themes */
 .glass-panel {
-  background: rgba(18, 30, 23, 0.75);
+  background: var(--bg-card);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(212, 175, 55, 0.15);
+  border: 1px solid var(--border-color);
 }
 
 .glass-panel-hover {
@@ -22,14 +47,14 @@
 }
 
 .glass-panel-hover:hover {
-  background: rgba(24, 40, 31, 0.85);
+  background: var(--bg-card-hover);
   border-color: rgba(212, 175, 55, 0.35);
-  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px rgba(212, 175, 55, 0.15);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.15), 0 0 15px rgba(212, 175, 55, 0.15);
   transform: translateY(-2px);
 }
 
 .gold-gradient-text {
-  background: linear-gradient(135deg, #FFF 0%, #d4af37 50%, #c5a059 100%);
+  background: linear-gradient(135deg, #d4af37 0%, #fef08a 50%, #c5a059 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -42,6 +67,11 @@
   background: linear-gradient(135deg, #044229 0%, #008751 100%);
 }
 
+/* Custom Safe Area padding for mobile fixed navigation */
+.pb-safe-bottom {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* Scrollbar styles */
 ::-webkit-scrollbar {
   width: 8px;
@@ -49,14 +79,24 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a120e;
+  background: var(--bg-primary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1f3529;
+  background: var(--border-color);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #d4af37;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
