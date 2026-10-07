@@ -1,65 +1,25 @@
-import React, { useState } from 'react';
-import { MessageSquare, X } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import React from 'react';
 
 export default function WhatsAppButton() {
-  const { settings } = useApp();
-  const [isOpen, setIsOpen] = useState(false);
-
-  const cleanPhone = settings.whatsappNumber.replace(/[^0-9]/g, '');
-  const encodedMsg = encodeURIComponent(settings.whatsappMessage);
-  const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMsg}`;
+  const whatsappUrl = `https://wa.me/22646553556?text=${encodeURIComponent("Bonjour TURF PERFORMANCE PRO, j'ai besoin d'aide concernant mon accès TURFELITE-PMU.")}`;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
-
-      {/* Interactive Tooltip Card */}
-      {isOpen && (
-        <div className="mb-3 w-72 bg-racing-card border border-emerald-500/40 rounded-2xl p-4 shadow-2xl backdrop-blur-lg animate-in fade-in slide-in-from-bottom-5">
-          <div className="flex items-center justify-between pb-2 border-b border-racing-border">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-              <span className="text-xs font-bold text-white uppercase tracking-wider">Assistance TurfElite</span>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-slate-400 hover:text-white transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="my-3 text-xs text-slate-300">
-            <p className="font-semibold text-emerald-400 mb-1">🟢 En ligne - Réponse en 5 min</p>
-            <p>Une question sur un pronostic, le Quinté+ ou les offres abonnés ? Écrivez-nous directement sur WhatsApp !</p>
-          </div>
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-2 text-xs shadow-lg transition-all"
-          >
-            <MessageSquare className="w-4 h-4 fill-current" />
-            <span>Ouvrir WhatsApp</span>
-          </a>
-        </div>
-      )}
-
-      {/* Floating Action Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="group relative flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-3.5 rounded-full shadow-emerald-glow transition-all duration-300 hover:scale-105"
-        title="Contacter le support WhatsApp"
+    <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50">
+      <a
+        href={whatsappUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Contacter sur WhatsApp"
+        className="flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-full shadow-2xl shadow-emerald-900/50 hover:scale-110 active:scale-95 transition-all duration-300 animate-pulse hover:animate-none"
       >
-        <MessageSquare className="w-6 h-6 fill-current" />
-        <span className="hidden sm:inline text-xs font-extrabold pr-1">Support Live</span>
-
-        {/* Status indicator dot */}
-        <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-400 border-2 border-racing-dark"></span>
-        </span>
-      </button>
-
+        {/* SVG WhatsApp Official Icon */}
+        <svg
+          className="w-8 h-8 sm:w-9 sm:h-9 fill-current"
+          viewBox="0 0 24 24"
+        >
+          <path d="M12.031 2c-5.514 0-9.998 4.486-9.998 10.001 0 1.8.47 3.547 1.365 5.107l-1.398 5.11 5.231-1.372c1.51.824 3.22 1.259 4.799 1.259 5.516 0 10.001-4.485 10.001-10s-4.485-10-10.001-10zm5.834 14.161c-.244.688-1.22 1.31-1.696 1.383-.454.07-1.041.1-1.688-.108-.393-.127-.899-.292-1.547-.573-2.73-1.183-4.512-3.955-4.649-4.138-.137-.183-1.118-1.488-1.118-2.838 0-1.35.706-2.012.958-2.286.252-.274.55-.343.733-.343.183 0 .366.002.526.01.171.008.402-.065.628.478.228.548.777 1.897.845 2.034.068.137.114.297.023.48-.091.183-.137.297-.274.457-.137.16-.289.358-.412.48-.137.137-.28.286-.12.526.16.24.712 1.172 1.528 1.898 1.049.934 1.935 1.223 2.21 1.36.274.137.434.114.594-.068.16-.183.686-.8.868-1.074.183-.274.366-.228.617-.137.252.091 1.599.754 1.874.891.274.137.457.206.526.32.068.114.068.663-.176 1.351z"/>
+        </svg>
+      </a>
     </div>
   );
 }

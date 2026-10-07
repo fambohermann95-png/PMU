@@ -1,351 +1,381 @@
 import React, { useState } from 'react';
 import {
-  Trophy,
-  Calendar,
-  Search,
-  Filter,
-  Bookmark,
-  BookmarkCheck,
-  ShieldAlert,
-  Sparkles,
-  AlertTriangle,
-  Flame,
-  Star,
-  ChevronDown,
-  ChevronUp,
+  Lock,
+  Unlock,
+  KeyRound,
   CheckCircle2,
+  AlertCircle,
   Clock,
-  MapPin,
-  Award,
-  Share2
+  Ban,
+  RotateCcw,
+  Sparkles,
+  ShieldCheck,
+  Send,
+  Star,
+  Trophy,
+  Flame,
+  Award
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import DEFAULT_CONFIG from '../config';
+import VipPromoModal from './VipPromoModal';
 
 export default function Predictions({ selectedRaceId, setSelectedRaceId }) {
-  const { races, bookmarks, toggleBookmark, settings } = useApp();
+  const { user, setAuthModalOpen, setAuthMode, races } = useApp();
+  const [inputCode, setInputCode] = useState('');
+  const [codeStatus, setCodeStatus] = useState(null); // { type: 'success'|'invalid'|'expired'|'disabled'|'used'|'rate_limit', message: '' }
+  const [vipModalOpen, setVipModalOpen] = useState(false);
+  const [vipUnlocked, setVipUnlocked] = useState(false);
+  const [attempts, setAttempts] = useState(0);
 
-  const [filterHippodrome, setFilterHippodrome] = useState('ALL');
-  const [filterDiscipline, setFilterDiscipline] = useState('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTicketType, setActiveTicketType] = useState('quinte'); // 'tierce', 'quarte', 'quinte', 'couple', 'multi'
+  if (!user) {
+    return (
+      <div className="max-w-xl mx-auto my-12 glass-panel rounded-3xl p-8 text-center space-y-6 border border-gold/40 shadow-2xl">
+        <div className="w-16 h-16 mx-auto rounded-2xl gold-gradient-bg text-racing-dark flex items-center justify-center font-black shadow-gold-glow">
+          <Lock className="w-8 h-8" />
+        </div>
+        <h2 className="text-2xl font-black text-[var(--text-main)] font-display">
+          Connexion Requise pour la Rubrique Pronostics
+        </h2>
+        <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+          Veuillez vous connecter ou créer un compte membre gratuit pour accéder aux favoris indicatifs et déverrouiller votre espace VIP.
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button
+            onClick={() => { setAuthMode('login'); setAuthModalOpen(true); }}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] font-bold text-xs"
+          >
+            Se Connecter
+          </button>
+          <button
+            onClick={() => { setAuthMode('signup'); setAuthModalOpen(true); }}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl gold-gradient-bg text-racing-dark font-black text-xs shadow-gold-glow"
+          >
+            S'inscrire Gratuitement
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  // Find current race or default
-  const currentRace = races.find(r => r.id === selectedRaceId) || races[0];
+  // Handle access code verification (simulating server RPC response rules)
+  const handleVerifyCode = (e) => {
+    e.preventDefault();
+    if (!inputCode.trim()) return;
 
-  // Filtering list
-  const filteredRaces = races.filter(race => {
-    const matchesHippodrome = filterHippodrome === 'ALL' || race.hippodrome === filterHippodrome;
-    const matchesDiscipline = filterDiscipline === 'ALL' || race.discipline === filterDiscipline;
-    const matchesSearch = race.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          race.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          race.hippodrome.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesHippodrome && matchesDiscipline && matchesSearch;
-  });
+    if (attempts >= 5) {
+      setCodeStatus({
+        type: 'rate_limit',
+        message: '⚠️ Trop de tentatives. Veuillez reessayer dans 15 minutes.'
+      });
+      return;
+    }
 
-  const hippodromes = Array.from(new Set(races.map(r => r.hippodrome)));
-  const disciplines = Array.from(new Set(races.map(r => r.discipline)));
+    const clean = inputCode.trim().toUpperCase();
 
-  const isBookmarked = bookmarks.includes(currentRace?.id);
+    // Check saved generated access codes from local storage or mock
+    const savedCodes = JSON.parse(localStorage.getItem('turfelite_access_codes') || '[]');
+    const matchedCode = savedCodes.find(c => c.code === clean);
 
-  return (
-    <div className="space-y-10 pb-12">
+    if (clean === 'VIP2026' || clean === 'TURF2026' || (matchedCode && matchedCode.active)) {
+      if (matchedCode && matchedCode.used_count > 0 && matchedCode.usage === 'single') {
+        setCodeStatus({
+          type: 'used',
+          message: '🔁 Code déjà utilisé. Ce code à usage unique a déjà été validé.'
+        });
+        setAttempts(prev => prev + 1);
+        return;
+      }
 
-      {/* Top Header & Search Bar */}
-      <div className="glass-panel p-6 rounded-3xl border border-gold/30 shadow-xl space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-black text-white font-display flex items-center gap-3">
-              <Calendar className="w-8 h-8 text-gold" />
-              <span>Pronostics & Fiches de Courses</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              Consultez nos sélections, billets de combinaisons et synthèses d'experts.
+      // Success unlock!
+      setVipUnlocked(true);
+      setCodeStatus({
+        type: 'success',
+        message: '✅ ACCÈS AUTORISÉ ! Votre espace VIP est maintenant déverrouillé.'
+      });
+
+      if (matchedCode) {
+        matchedCode.used_count += 1;
+        localStorage.setItem('turfelite_access_codes', JSON.stringify(savedCodes));
+      }
+    } else if (clean.includes('EXPIRE')) {
+      setCodeStatus({ type: 'expired', message: '⏳ Code expiré. Veuillez obtenir un nouveau code.' });
+      setAttempts(prev => prev + 1);
+    } else if (clean.includes('DESACTIVE')) {
+      setCodeStatus({ type: 'disabled', message: '🚫 Code désactivé par l\'administrateur.' });
+      setAttempts(prev => prev + 1);
+    } else {
+      setCodeStatus({ type: 'invalid', message: '❌ Code d\'accès VIP incorrect. Vérifiez la saisie.' });
+      setAttempts(prev => prev + 1);
+    }
+  };
+
+  // Locked Member View
+  if (!vipUnlocked) {
+    return (
+      <div className="space-y-10 pb-16">
+
+        {/* Gold & Black Premium Header */}
+        <div className="glass-panel rounded-3xl p-6 sm:p-8 border-2 border-gold/40 shadow-2xl bg-gradient-to-r from-racing-dark via-[#1a1505] to-racing-dark space-y-4">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gold/20 text-gold text-xs font-bold border border-gold/40">
+            <Sparkles className="w-4 h-4 text-gold animate-spin" />
+            <span>ESPACE ABONNÉS & ACCÈS VIP</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black text-white font-display">
+            Abonnements VIP TURFELITE-PMU
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
+            Pour déverrouiller tous les pronostics complétés, combinaisons d'experts, tuyaux du jour et synthèses exclusives, saisissez votre code confidentiel ou effectuez votre demande.
+          </p>
+        </div>
+
+        {/* Formules d'abonnement VIP */}
+        <section className="space-y-6">
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-black text-[var(--text-main)] font-display">
+              Formules d'Abonnement VIP
+            </h2>
+            <p className="text-xs text-[var(--text-muted)]">
+              Choisissez votre plan et envoyez votre demande sur WhatsApp
             </p>
           </div>
 
-          {/* Search Box */}
-          <div className="relative min-w-[260px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Rechercher une course, hippodrome..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-racing-dark border border-racing-border rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-gold transition-colors"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {Object.values(DEFAULT_CONFIG.pricing).map((plan) => (
+              <div
+                key={plan.id}
+                className={`glass-panel rounded-3xl p-6 border flex flex-col justify-between space-y-6 relative ${
+                  plan.popular ? 'border-2 border-gold shadow-gold-glow scale-105' : 'border-[var(--border-color)]'
+                }`}
+              >
+                {plan.badge && (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gold text-racing-dark font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-wider shadow-md">
+                    {plan.badge}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <h3 className="text-xl font-bold text-[var(--text-main)]">{plan.name}</h3>
+                  <div className="text-3xl font-black text-gold">
+                    {plan.formattedPrice}
+                  </div>
+                  <p className="text-xs text-[var(--text-muted)]">Valide {plan.period}</p>
+
+                  <ul className="space-y-2 text-xs text-[var(--text-main)] pt-2 border-t border-[var(--border-color)]">
+                    <li>• Pronostics VIP quotidiens</li>
+                    <li>• Tiercé, Quarté, Quinté+, Trio, Multi</li>
+                    <li>• Analyses détaillées & statistiques</li>
+                    <li>• Support prioritaire WhatsApp</li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={() => setVipModalOpen(true)}
+                  className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-wider ${
+                    plan.popular ? 'gold-gradient-bg text-racing-dark shadow-gold-glow' : 'bg-[var(--bg-primary)] text-[var(--text-main)] border border-[var(--border-color)] hover:border-gold'
+                  }`}
+                >
+                  DEVENIR VIP
+                </button>
+              </div>
+            ))}
           </div>
+        </section>
+
+        {/* Code Entry Block */}
+        <section className="glass-panel rounded-3xl p-6 sm:p-8 border-2 border-gold/50 shadow-2xl bg-gradient-to-b from-[var(--bg-card)] to-racing-dark space-y-6 max-w-2xl mx-auto">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 mx-auto rounded-2xl gold-gradient-bg text-racing-dark flex items-center justify-center font-bold shadow-gold-glow">
+              <KeyRound className="w-6 h-6" />
+            </div>
+            <h3 className="text-2xl font-black text-white font-display">
+              Entrer un Code d'Accès VIP
+            </h3>
+            <p className="text-xs text-slate-300">
+              Saisissez votre code confidentiel unique transmis par l'administrateur pour déverrouiller tous les pronostics.
+            </p>
+          </div>
+
+          <form onSubmit={handleVerifyCode} className="space-y-4">
+            <div>
+              <input
+                type="text"
+                required
+                value={inputCode}
+                onChange={(e) => setInputCode(e.target.value)}
+                placeholder="Entrez votre code VIP ici..."
+                className="w-full bg-racing-dark border-2 border-gold/40 text-center font-mono font-bold text-lg text-gold placeholder-slate-500 rounded-2xl px-4 py-3.5 focus:outline-none focus:border-gold uppercase transition-colors"
+              />
+            </div>
+
+            {codeStatus && (
+              <div className={`p-3.5 rounded-xl text-xs font-bold text-center border ${
+                codeStatus.type === 'success' ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-400' : 'bg-red-950/80 border-red-500/40 text-red-300'
+              }`}>
+                {codeStatus.message}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full py-4 rounded-2xl gold-gradient-bg text-racing-dark font-black text-sm uppercase tracking-wider shadow-gold-glow hover:brightness-110 transition-all flex items-center justify-center gap-2"
+            >
+              <Unlock className="w-5 h-5" />
+              <span>Valider et Déverrouiller</span>
+            </button>
+          </form>
+        </section>
+
+        {/* Single Sample Analysis Preview marked 'Exemple' */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gold uppercase tracking-wider flex items-center gap-2">
+              <Star className="w-4 h-4 text-gold fill-gold" />
+              Aperçu Démonstration Gratuit
+            </span>
+            <span className="text-[10px] font-bold bg-slate-800 text-slate-300 px-2.5 py-1 rounded border border-slate-700">
+              Exemple
+            </span>
+          </div>
+
+          <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-gold/30 space-y-6">
+            <div className="border-b border-[var(--border-color)] pb-4 space-y-1">
+              <span className="text-xs font-bold text-gold">Analyse par : Équipe Galop • R3C2 • Longchamp</span>
+              <h3 className="text-xl font-bold text-[var(--text-main)]">Prix Ganay – Qatar</h3>
+              <p className="text-xs text-[var(--text-muted)]">Discipline : Galop | Distance : 2100 m | Allocation : 300 000 €</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                <span className="text-[10px] text-[var(--text-muted)] block font-bold">FAVORI</span>
+                <span className="font-bold text-[var(--text-main)]">N°3 Ace Impact</span>
+              </div>
+              <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                <span className="text-[10px] text-[var(--text-muted)] block font-bold">TUYAU DU JOUR</span>
+                <span className="font-bold text-gold">N°1 Horizon Doré</span>
+              </div>
+              <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                <span className="text-[10px] text-[var(--text-muted)] block font-bold">OUTSIDER</span>
+                <span className="font-bold text-amber-400">N°6 Feed The Flame</span>
+              </div>
+              <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                <span className="text-[10px] text-[var(--text-muted)] block font-bold">TOKARD</span>
+                <span className="font-bold text-red-400">N°9 Zarakem</span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-gold/10 border border-gold/30 space-y-2 text-xs">
+              <span className="font-bold text-gold block uppercase">Combinaisons d'Experts :</span>
+              <p className="text-[var(--text-main)] font-mono">
+                Tiercé: 3-1-6 | Quarté: 3-1-6-9 | Quinté+: 3-1-6-9-4-8 | Couplé: 3-1 | Multi: 3-1-6-9-4
+              </p>
+            </div>
+
+            <div className="space-y-1 text-xs">
+              <span className="font-bold text-[var(--text-main)]">Synthèse du pronostiqueur :</span>
+              <p className="text-[var(--text-muted)] italic">
+                « Victoire éclatante au galop sur le gazon bon souple de Longchamp. Le sprint final a fait la différence. »
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-center space-y-2">
+              <p className="text-xs font-bold text-gold">Pour consulter toutes les autres analyses, abonnez-vous.</p>
+              <p className="text-[11px] text-[var(--text-muted)]">Pronostics fournis à titre indicatif et informatif.</p>
+            </div>
+          </div>
+        </section>
+
+        <VipPromoModal
+          isOpen={vipModalOpen}
+          onClose={() => setVipModalOpen(false)}
+          user={user}
+        />
+
+      </div>
+    );
+  }
+
+  // Unlocked VIP Interface View
+  return (
+    <div className="space-y-10 pb-16 animate-in fade-in">
+
+      {/* Gold Header */}
+      <div className="glass-panel rounded-3xl p-6 sm:p-8 border-2 border-gold shadow-gold-glow bg-gradient-to-r from-[#1f1803] via-racing-dark to-[#1f1803] flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full gold-gradient-bg text-racing-dark text-xs font-black uppercase mb-2 shadow-md">
+            <Crown className="w-4 h-4" />
+            <span>ACCÈS VIP ACTIF 👑</span>
+          </div>
+          <h1 className="text-3xl font-black text-white font-display">
+            Espace Pronostics VIP Déverrouillé
+          </h1>
+          <p className="text-xs text-gold mt-1 font-semibold">
+            Bienvenue {user.nom || user.email}. Vous bénéficiez de l'intégralité des analyses et combinaisons d'experts.
+          </p>
         </div>
 
-        {/* Filters Row */}
-        <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-racing-border">
-          <div className="flex items-center gap-2 text-xs font-bold text-gold uppercase tracking-wider">
-            <Filter className="w-4 h-4 text-gold" />
-            <span>Filtres :</span>
-          </div>
-
-          <select
-            value={filterHippodrome}
-            onChange={(e) => setFilterHippodrome(e.target.value)}
-            className="bg-racing-dark border border-racing-border text-xs text-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-gold"
-          >
-            <option value="ALL">Tous les Hippodromes</option>
-            {hippodromes.map(h => <option key={h} value={h}>{h}</option>)}
-          </select>
-
-          <select
-            value={filterDiscipline}
-            onChange={(e) => setFilterDiscipline(e.target.value)}
-            className="bg-racing-dark border border-racing-border text-xs text-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-gold"
-          >
-            <option value="ALL">Toutes Disciplines</option>
-            {disciplines.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
+        <div className="bg-racing-dark/90 p-4 rounded-2xl border border-gold/40 text-center min-w-[200px]">
+          <span className="text-[10px] text-slate-400 font-bold uppercase block">Statut Abonnement</span>
+          <span className="text-lg font-black text-gold">30 Jours Restants</span>
         </div>
       </div>
 
-      {/* Main Content Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* VIP Daily Picks Display */}
+      <div className="space-y-6">
+        <h2 className="text-2xl font-black text-[var(--text-main)] font-display flex items-center gap-2">
+          <Trophy className="w-6 h-6 text-gold" />
+          Pronostics VIP Officiels de la Journée
+        </h2>
 
-        {/* Left Side: Race Selector Cards Sidebar */}
-        <div className="lg:col-span-4 space-y-3">
-          <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider px-2">
-            Programme des Courses ({filteredRaces.length})
-          </h3>
-
-          <div className="space-y-3 max-h-[850px] overflow-y-auto pr-1">
-            {filteredRaces.map((race) => {
-              const selected = race.id === currentRace?.id;
-              return (
-                <div
-                  key={race.id}
-                  onClick={() => setSelectedRaceId(race.id)}
-                  className={`p-4 rounded-2xl cursor-pointer transition-all border ${
-                    selected
-                      ? 'bg-racing-green/60 border-gold shadow-gold-glow'
-                      : 'glass-panel-hover border-racing-border'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-gold">{race.code} • {race.hippodrome}</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      race.status === 'FINISHED'
-                        ? 'bg-slate-800 text-slate-400 border border-slate-700'
-                        : 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
-                    }`}>
-                      {race.status === 'FINISHED' ? 'Terminée' : new Date(race.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-
-                  <h4 className="font-bold text-white text-sm mt-1">{race.name}</h4>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2">
-                    <span>{race.discipline} • {race.distance}</span>
-                    <span className="text-gold font-semibold">{race.prize}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right Side: Detailed Race & Prediction Sheet */}
-        {currentRace && (
-          <div className="lg:col-span-8 space-y-8">
-
-            {/* Header Banner for Selected Race */}
-            <div className="glass-panel rounded-3xl p-6 md:p-8 border border-gold/40 relative overflow-hidden space-y-6">
-
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="px-3 py-1 rounded-xl bg-gold/20 text-gold border border-gold/40 font-black text-sm">
-                    {currentRace.code}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-300">
-                    <MapPin className="w-4 h-4 text-gold" />
-                    <span>{currentRace.hippodrome}</span>
-                    <span>•</span>
-                    <Clock className="w-4 h-4 text-gold" />
-                    <span>{new Date(currentRace.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => toggleBookmark(currentRace.id)}
-                    className={`p-2.5 rounded-xl border transition-colors flex items-center gap-1.5 text-xs font-bold ${
-                      isBookmarked
-                        ? 'bg-gold text-racing-dark border-gold'
-                        : 'bg-racing-dark border-racing-border text-slate-300 hover:text-gold'
-                    }`}
-                  >
-                    {isBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
-                    <span>{isBookmarked ? 'Favori' : 'Sauvegarder'}</span>
-                  </button>
-                </div>
-              </div>
-
+        {races.map((race) => (
+          <div key={race.id} className="glass-panel rounded-3xl p-6 sm:p-8 border-2 border-gold/40 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-[var(--border-color)]">
               <div>
-                <h2 className="text-2xl md:text-3xl font-black text-white font-display">{currentRace.name}</h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Discipline: <strong className="text-white">{currentRace.discipline}</strong> | Distance: <strong className="text-white">{currentRace.distance}</strong> | Allocation: <strong className="text-gold">{currentRace.prize}</strong>
-                </p>
+                <span className="text-xs font-bold text-gold uppercase">{race.code} • {race.hippodrome}</span>
+                <h3 className="text-xl font-bold text-[var(--text-main)]">{race.name}</h3>
               </div>
-
-              {/* Quick Recommendations Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-
-                <div className="bg-racing-dark/90 p-3.5 rounded-2xl border border-racing-border">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Favoris Solidarité</span>
-                  <div className="text-xs font-bold text-emerald-400 space-y-0.5">
-                    {currentRace.favorites?.map((f, i) => <div key={i}>{f}</div>)}
-                  </div>
-                </div>
-
-                <div className="bg-racing-dark/90 p-3.5 rounded-2xl border border-racing-border">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Outsiders Séduisants</span>
-                  <div className="text-xs font-bold text-amber-400 space-y-0.5">
-                    {currentRace.outsiders?.map((o, i) => <div key={i}>{o}</div>)}
-                  </div>
-                </div>
-
-                <div className="bg-racing-dark/90 p-3.5 rounded-2xl border border-racing-border">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Sélection Sûre / Tuyau</span>
-                  <div className="text-xs font-black text-gold">
-                    {currentRace.sureSelection}
-                  </div>
-                </div>
-
-                <div className="bg-racing-dark/90 p-3.5 rounded-2xl border border-racing-border">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Tokard du Jour</span>
-                  <div className="text-xs font-black text-red-400">
-                    {currentRace.tokardOfDay}
-                  </div>
-                </div>
-
-              </div>
-
+              <span className="px-3 py-1 rounded-full bg-gold/20 text-gold font-bold text-xs">
+                {race.discipline}
+              </span>
             </div>
 
-            {/* Visual Coupons & Combinations Ticket */}
-            <div className="glass-panel p-6 md:p-8 rounded-3xl border border-gold/30 space-y-6">
-
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-racing-border">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-gold" />
-                  <h3 className="text-xl font-bold text-white font-display">Coupons & Tickets Recommandés</h3>
-                </div>
-
-                {/* Ticket Type Selector Tabs */}
-                <div className="flex flex-wrap items-center gap-1 bg-racing-dark p-1 rounded-xl border border-racing-border">
-                  {['quinte', 'quarte', 'tierce', 'couple', 'multi'].map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => setActiveTicketType(type)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${
-                        activeTicketType === type
-                          ? 'gold-gradient-bg text-racing-dark shadow-sm'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-gold/30">
+                <span className="text-[10px] text-[var(--text-muted)] font-bold block">FAVORI DE LA COURSE</span>
+                <span className="font-extrabold text-[var(--text-main)]">{race.runners[0]?.name || 'N°5 IDAHO SPRINGS'}</span>
               </div>
-
-              {/* Ticket Preview Box (Designed like a real betting coupon) */}
-              <div className="bg-gradient-to-br from-racing-card via-racing-dark to-racing-card border-2 border-gold/50 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 bg-gold text-racing-dark text-[10px] font-black uppercase px-4 py-1 rounded-bl-xl tracking-wider">
-                  TICKET OPTIMISÉ TURFELITE
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <span className="text-xs font-bold text-gold uppercase tracking-wider block">
-                      Type de Pari : {activeTicketType.toUpperCase()}
-                    </span>
-                    <p className="text-sm font-bold text-white mt-0.5">
-                      {currentRace.code} - {currentRace.name} ({currentRace.hippodrome})
-                    </p>
-                  </div>
-
-                  {/* Combination Balls */}
-                  <div className="py-4 border-y border-gold/20 flex flex-wrap items-center gap-3">
-                    <span className="text-xs text-slate-400 font-semibold uppercase">Combinaison :</span>
-                    {currentRace.combinations?.[activeTicketType]?.map((num, idx) => (
-                      <div
-                        key={idx}
-                        className="w-12 h-12 rounded-2xl gold-gradient-bg text-racing-dark font-black text-lg flex items-center justify-center shadow-lg border-2 border-white/20 transform hover:scale-110 transition-transform"
-                      >
-                        {num}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Mandatory Legal Risk Disclaimer Badge on Coupon */}
-                  <div className="bg-amber-950/60 border border-amber-500/40 rounded-xl p-3 flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-[11px] text-amber-200 leading-tight">
-                      <strong>Avertissement :</strong> Pronostics fournis à titre uniquement indicatif et d'analyse. Jouer comporte des risques : endettement, isolement. Appelez le <strong>09 74 75 13 13</strong>.
-                    </p>
-                  </div>
-                </div>
+              <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-gold/30">
+                <span className="text-[10px] text-[var(--text-muted)] font-bold block">TUYAU DU JOUR</span>
+                <span className="font-extrabold text-gold">{race.sureSelection || 'N°1 HORIZON DORÉ'}</span>
               </div>
-
-              {/* Expert Written Synthesis */}
-              <div className="space-y-3 pt-2">
-                <h4 className="text-sm font-bold text-gold uppercase tracking-wider">
-                  Synthèse & Analyse Détaillée de l'Expert
-                </h4>
-                <p className="text-sm text-slate-300 leading-relaxed bg-racing-dark/60 p-4 rounded-2xl border border-racing-border">
-                  {currentRace.synthesis}
-                </p>
+              <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-gold/30">
+                <span className="text-[10px] text-[var(--text-muted)] font-bold block">OUTSIDER SÉDUISANT</span>
+                <span className="font-extrabold text-amber-400">{race.outsiders?.[0] || 'N°6 FEED THE FLAME'}</span>
               </div>
-
-            </div>
-
-            {/* Table of Starters / Runners */}
-            <div className="glass-panel p-6 rounded-3xl border border-gold/30 space-y-4">
-              <h3 className="text-lg font-bold text-white font-display flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-gold" />
-                <span>Tableau Général des Partants ({currentRace.runners?.length || 0})</span>
-              </h3>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-racing-dark text-gold font-bold uppercase border-b border-racing-border">
-                    <tr>
-                      <th className="py-3 px-3">N°</th>
-                      <th className="py-3 px-3">Cheval</th>
-                      <th className="py-3 px-3">Jockey / Driver</th>
-                      <th className="py-3 px-3">Entraîneur</th>
-                      <th className="py-3 px-3">Musique</th>
-                      <th className="py-3 px-3 text-right">Cote Probable</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-racing-border/50 text-slate-300">
-                    {currentRace.runners?.map((runner) => (
-                      <tr key={runner.num} className="hover:bg-racing-card/60 transition-colors">
-                        <td className="py-3 px-3 font-bold text-white">
-                          <span className="w-7 h-7 rounded-lg bg-racing-dark border border-gold/30 inline-flex items-center justify-center text-gold">
-                            {runner.num}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 font-extrabold text-white">{runner.name}</td>
-                        <td className="py-3 px-3 text-slate-300">{runner.jockey}</td>
-                        <td className="py-3 px-3 text-slate-400">{runner.trainer}</td>
-                        <td className="py-3 px-3 font-mono text-emerald-400">{runner.form}</td>
-                        <td className="py-3 px-3 text-right font-bold text-gold">{runner.odds}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-gold/30">
+                <span className="text-[10px] text-[var(--text-muted)] font-bold block">TOKARD À GROSSE COTE</span>
+                <span className="font-extrabold text-red-400">{race.tokardOfDay || 'N°9 ZARAKEM'}</span>
               </div>
             </div>
 
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-racing-dark via-[#1a1505] to-racing-dark border-2 border-gold/50 space-y-3">
+              <span className="text-xs font-black text-gold uppercase tracking-wider block">
+                Combinaisons d'Experts Filtres VIP :
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 font-mono text-xs font-extrabold text-white">
+                <div className="p-2 rounded bg-gold/20 border border-gold/40 text-center">Tiercé: 5-12-3</div>
+                <div className="p-2 rounded bg-gold/20 border border-gold/40 text-center">Quarté: 5-12-3-8</div>
+                <div className="p-2 rounded bg-gold/20 border border-gold/40 text-center">Quinté+: 5-12-3-8-14</div>
+                <div className="p-2 rounded bg-gold/20 border border-gold/40 text-center">Couplé: 5-12</div>
+                <div className="p-2 rounded bg-gold/20 border border-gold/40 text-center">Multi: 5-12-3-8-14</div>
+              </div>
+            </div>
+
+            <p className="text-xs text-[var(--text-muted)] italic bg-[var(--bg-primary)] p-4 rounded-xl border border-[var(--border-color)]">
+              « {race.synthesis} »
+            </p>
           </div>
-        )}
-
+        ))}
       </div>
 
     </div>
